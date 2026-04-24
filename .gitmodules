@@ -1,0 +1,9 @@
+[submodule "lla-backend"]
+	path = lla-backend
+	url = git@github.com:dananap/lla-backend.git
+[submodule "flashcard-backend"]
+	path = flashcard-backend
+	url = git@github.com:dananap/lla-backend.git
+[submodule "flashcard-frontend"]
+	path = flashcard-frontend
+	url = git@github.com:dananap/lla-frontend.git
