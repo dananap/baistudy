@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./flashcard-backend
+    container_name: python-backend
+    restart: unless-stopped
+    # We do NOT map ports here to the host. 
+    # Nginx will talk to it internally on port 5000.
+
+  frontend:
+    build: ./flashcard-frontend
+    container_name: vue-nginx-frontend
+    restart: unless-stopped
+    ports:
+      - "8088:80" # Maps host port 8000 to Nginx container port 80
+    depends_on:
+      - backend # Ensures backend starts before Nginx
