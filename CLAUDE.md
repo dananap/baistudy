@@ -52,6 +52,24 @@ git add flashcard-backend flashcard-frontend
 git commit -m "bump submodule refs"
 ```
 
+## Environment variables
+
+The backend reads from `flashcard-backend/.env`. Required keys:
+
+| Variable | Used by |
+|----------|---------|
+| `DEEPSEEK_API_KEY` | LLM word generation |
+| `UNSPLASH_ACCESS_KEY` | Word image search |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Google Cloud TTS |
+
+## Deploying to GCP (Cloud Run)
+
+```bash
+bash deploy.sh   # reads flashcard-backend/.env; pushes images, deploys both services
+```
+
+Requires `gcloud` CLI authenticated and `GCP_PROJECT` / `GCP_REGION` set (defaults: `baistudy` / `europe-west3`).
+
 ## Architecture overview
 
 The frontend talks to the backend exclusively through `/api/*` routes. In development Vite proxies these to `http://localhost:8000` (stripping the `/api` prefix). In production the frontend Dockerfile bakes an Nginx config that proxies to the `backend` Docker service by hostname.
