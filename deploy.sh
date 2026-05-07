@@ -7,7 +7,6 @@ REGION="${GCP_REGION:-europe-west3}"
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/flashcard"
 
 BACKEND_IMAGE="${REGISTRY}/backend:latest"
-FRONTEND_IMAGE="${REGISTRY}/frontend:latest"
 
 # ── Load backend env vars from .env ──────────────────────────────────────────
 set -a; source flashcard-backend/.env; set +a
@@ -40,6 +39,10 @@ gcloud run deploy flashcard-backend \
   --network default \
   --subnet default \
   --vpc-egress private-ranges-only \
+  --memory 256Mi \
+  --cpu 1000m \
+  --min-instances 0 \
+  --max-instances 3 \
   --set-env-vars "^|^DATABASE_URL=${DATABASE_URL}|DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}|UNSPLASH_ACCESS_KEY=${UNSPLASH_ACCESS_KEY}"
 
 BACKEND_URL=$(gcloud run services describe flashcard-backend \
@@ -50,23 +53,10 @@ echo "Backend: $BACKEND_URL"
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 echo "==> Building frontend..."
-docker build -t "$FRONTEND_IMAGE" flashcard-frontend
+(cd flashcard-frontend && VITE_API_BASE="${BACKEND_URL}" pnpm build)
 
-echo "==> Pushing frontend..."
-docker push "$FRONTEND_IMAGE"
+echo "==> Deploying frontend to Firebase Hosting..."
+firebase deploy --only hosting --project "$PROJECT_ID"
 
-echo "==> Deploying frontend to Cloud Run..."
-gcloud run deploy flashcard-frontend \
-  --image "$FRONTEND_IMAGE" \
-  --region "$REGION" \
-  --project "$PROJECT_ID" \
-  --platform managed \
-  --allow-unauthenticated \
-  --port 80 \
-  --set-env-vars "BACKEND_URL=${BACKEND_URL}"
-
-FRONTEND_URL=$(gcloud run services describe flashcard-frontend \
-  --region "$REGION" \
-  --project "$PROJECT_ID" \
-  --format "value(status.url)")
+FRONTEND_URL="https://${PROJECT_ID}.web.app"
 echo "Frontend: $FRONTEND_URL"
