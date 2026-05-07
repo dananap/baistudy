@@ -52,6 +52,20 @@ git add flashcard-backend flashcard-frontend
 git commit -m "bump submodule refs"
 ```
 
+
+## Deploying to GCP (Cloud Run + Firebase Hosting)
+
+```bash
+bash deploy.sh   # reads flashcard-backend/.env + flashcard-frontend/.env.local; deploys backend to Cloud Run, frontend to Firebase Hosting
+```
+
+**Prerequisites:**
+- `gcloud` CLI authenticated; `GCP_PROJECT` / `GCP_REGION` defaults: `baistudy` / `europe-west3`
+- `firebase-tools` installed (`npm install -g firebase-tools`) and logged in (`firebase login`)
+- `flashcard-frontend/.env.local` with Firebase web app config (see frontend env vars below)
+
+To enable new user signups during a deploy: `VITE_ALLOW_SIGNUP=true bash deploy.sh`
+
 ## Environment variables
 
 The backend reads from `flashcard-backend/.env`. Required keys:
@@ -60,20 +74,21 @@ The backend reads from `flashcard-backend/.env`. Required keys:
 |----------|---------|
 | `DEEPSEEK_API_KEY` | LLM word generation |
 | `UNSPLASH_ACCESS_KEY` | Word image search |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Google Cloud TTS |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Google Cloud / Gemini TTS |
 
-## Deploying to GCP (Cloud Run)
+The frontend reads from `flashcard-frontend/.env.local` (not committed). Required keys:
 
-```bash
-bash deploy.sh   # reads flashcard-backend/.env; pushes images, deploys both services
-```
-
-Requires `gcloud` CLI authenticated and `GCP_PROJECT` / `GCP_REGION` set (defaults: `baistudy` / `europe-west3`).
+| Variable | Used by |
+|----------|---------|
+| `VITE_FIREBASE_API_KEY` | Firebase Auth |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Auth (default: `baistudy.firebaseapp.com`) |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase Auth (default: `baistudy`) |
+| `VITE_ALLOW_SIGNUP` | Set `true` to show "Create account" tab; omit to hide it |
 
 ## Architecture overview
 
-The frontend talks to the backend exclusively through `/api/*` routes. In development Vite proxies these to `http://localhost:8000` (stripping the `/api` prefix). In production the frontend Dockerfile bakes an Nginx config that proxies to the `backend` Docker service by hostname.
+In development, Vite proxies `/api/*` → `http://localhost:8000` (stripping the `/api` prefix). In production, the frontend is a static SPA hosted on Firebase Hosting and calls the Cloud Run backend directly via `VITE_API_BASE` with a Firebase ID token in the `Authorization: Bearer` header.
 
-The backend is stateless between requests; all study state lives in a SQLite file (`flashcard-backend/chinese_srs.db`). Authentication is a simple `X-User-ID` header — no tokens or sessions.
+The backend is stateless between requests; all study state lives in PostgreSQL (`DATABASE_URL`). Authentication uses Firebase ID tokens — `deps.py` verifies the token, then looks up or auto-creates the corresponding `User` row by `firebase_uid`.
 
 See `flashcard-backend/CLAUDE.md` for the full data model, FSRS algorithm details, and router map. See `flashcard-frontend/CLAUDE.md` for the Pinia store layout, design-token system, and component conventions.
