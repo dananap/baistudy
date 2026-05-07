@@ -53,7 +53,9 @@ echo "Backend: $BACKEND_URL"
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 echo "==> Building frontend..."
-(cd flashcard-frontend && VITE_API_BASE="${BACKEND_URL}" pnpm build)
+# Source frontend env (VITE_FIREBASE_* vars must be present at build time)
+[ -f flashcard-frontend/.env.local ] && set -a && source flashcard-frontend/.env.local && set +a
+(cd flashcard-frontend && VITE_API_BASE="${BACKEND_URL}" VITE_ALLOW_SIGNUP="${VITE_ALLOW_SIGNUP:-false}" pnpm build)
 
 echo "==> Deploying frontend to Firebase Hosting..."
 firebase deploy --only hosting --project "$PROJECT_ID"
