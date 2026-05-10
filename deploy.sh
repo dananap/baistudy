@@ -43,7 +43,7 @@ gcloud run deploy flashcard-backend \
   --cpu 1000m \
   --min-instances 0 \
   --max-instances 3 \
-  --set-env-vars "^|^DATABASE_URL=${DATABASE_URL}|DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}|UNSPLASH_ACCESS_KEY=${UNSPLASH_ACCESS_KEY}"
+  --set-env-vars "^|^DATABASE_URL=${DATABASE_URL}|DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}|UNSPLASH_ACCESS_KEY=${UNSPLASH_ACCESS_KEY}|AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}|AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION}|VITE_ALLOW_SIGNUP=${VITE_ALLOW_SIGNUP:-false}"
 
 BACKEND_URL=$(gcloud run services describe flashcard-backend \
   --region "$REGION" \
