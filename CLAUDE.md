@@ -53,42 +53,58 @@ git commit -m "bump submodule refs"
 ```
 
 
-## Deploying to GCP (Cloud Run + Firebase Hosting)
+## Deploying (Fly.io + Cloudflare Pages + Supabase)
 
 ```bash
-bash deploy.sh   # reads flashcard-backend/.env + flashcard-frontend/.env.local; deploys backend to Cloud Run, frontend to Firebase Hosting
+bash deploy.sh           # both: backend → Fly, frontend → Cloudflare Pages
+bash deploy-backend.sh   # just the backend
+bash deploy-frontend.sh  # just the frontend (auto-reads VITE_API_BASE from .env.local)
 ```
 
 **Prerequisites:**
-- `gcloud` CLI authenticated; `GCP_PROJECT` / `GCP_REGION` defaults: `baistudy` / `europe-west3`
-- `firebase-tools` installed (`npm install -g firebase-tools`) and logged in (`firebase login`)
-- `flashcard-frontend/.env.local` with Firebase web app config (see frontend env vars below)
+- `flyctl` installed and authenticated (`fly auth login`). First-time setup: `cd flashcard-backend && fly launch --no-deploy`.
+- `wrangler` installed (`npm i -g wrangler`) and authenticated (`wrangler login`).
+- Supabase project provisioned (see `migration/README.md`).
+- `flashcard-frontend/.env.local` with the keys below.
+- Backend secrets configured on Fly: `fly secrets set DATABASE_URL=... SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... DEEPSEEK_API_KEY=... UNSPLASH_ACCESS_KEY=... AZURE_SPEECH_KEY=... GCP_SERVICE_ACCOUNT_JSON="$(cat sa.json)"`. See `flashcard-backend/fly.toml` for the full list. User-JWT verification fetches the project's JWKS from `SUPABASE_URL/auth/v1/.well-known/jwks.json` — no shared secret needed.
 
-To enable new user signups during a deploy: `VITE_ALLOW_SIGNUP=true bash deploy.sh`
+To enable new user signups during a deploy: `VITE_ALLOW_SIGNUP=true bash deploy.sh`.
+
+## Migrating from the old GCP stack
+
+See `migration/README.md` for the one-shot scripts:
+1. `pg_dump` → Supabase Postgres
+2. Copy bytea blobs to Supabase Storage
+3. Pre-create Supabase auth users from Firebase export
+4. Trigger password-reset emails
 
 ## Environment variables
 
-The backend reads from `flashcard-backend/.env`. Required keys:
+Backend (`flashcard-backend/.env` for local dev, `fly secrets` in prod):
 
 | Variable | Used by |
 |----------|---------|
+| `DATABASE_URL` | Supabase Postgres — pooled (port 6543, `sslmode=require`) in prod |
+| `SUPABASE_URL` | Supabase project URL — also resolves the JWKS endpoint for verifying user JWTs in `deps.py` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Uploading audio/image blobs to Supabase Storage |
 | `DEEPSEEK_API_KEY` | LLM word generation |
 | `UNSPLASH_ACCESS_KEY` | Word image search |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Google Cloud / Gemini TTS |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service-account JSON (Google/Gemini TTS) |
+| `GCP_SERVICE_ACCOUNT_JSON` | Raw JSON contents; Fly entrypoint writes this to `/secrets/gcp.json` |
 
-The frontend reads from `flashcard-frontend/.env.local` (not committed). Required keys:
+Frontend (`flashcard-frontend/.env.local`, not committed):
 
 | Variable | Used by |
 |----------|---------|
-| `VITE_FIREBASE_API_KEY` | Firebase Auth |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Auth (default: `baistudy.firebaseapp.com`) |
-| `VITE_FIREBASE_PROJECT_ID` | Firebase Auth (default: `baistudy`) |
-| `VITE_ALLOW_SIGNUP` | Set `true` to show "Create account" tab; omit to hide it |
+| `VITE_SUPABASE_URL` | Supabase auth + storage |
+| `VITE_SUPABASE_ANON_KEY` | Supabase auth (public anon key) |
+| `VITE_API_BASE` | Full backend URL in prod (Fly app URL); omit in dev (Vite proxy handles it) |
+| `VITE_ALLOW_SIGNUP` | Set `true` to show "Create account" tab; omit/`false` to hide it |
 
 ## Architecture overview
 
-In development, Vite proxies `/api/*` → `http://localhost:8000` (stripping the `/api` prefix). In production, the frontend is a static SPA hosted on Firebase Hosting and calls the Cloud Run backend directly via `VITE_API_BASE` with a Firebase ID token in the `Authorization: Bearer` header.
+In development, Vite proxies `/api/*` → `http://localhost:8000` (stripping the `/api` prefix). In production, the frontend is a static SPA hosted on Cloudflare Pages and calls the Fly.io backend directly via `VITE_API_BASE` with a Supabase JWT in the `Authorization: Bearer` header.
 
-The backend is stateless between requests; all study state lives in PostgreSQL (`DATABASE_URL`). Authentication uses Firebase ID tokens — `deps.py` verifies the token, then looks up or auto-creates the corresponding `User` row by `firebase_uid`.
+The backend is stateless between requests; all study state lives in PostgreSQL (`DATABASE_URL` → Supabase). Audio/image blobs live in Supabase Storage (private buckets `word-audio`, `word-images`), accessed via the service-role key from the FastAPI layer. Authentication uses Supabase JWTs — `deps.py` verifies them against the project's JWKS (ES256/EdDSA, fetched from `{SUPABASE_URL}/auth/v1/.well-known/jwks.json` and cached in-process), then looks up or auto-creates the corresponding `User` row by `supabase_uid`.
 
 See `flashcard-backend/CLAUDE.md` for the full data model, FSRS algorithm details, and router map. See `flashcard-frontend/CLAUDE.md` for the Pinia store layout, design-token system, and component conventions.
