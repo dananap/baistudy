@@ -84,7 +84,7 @@ Backend (`flashcard-backend/.env` for local dev, `fly secrets` in prod):
 
 | Variable | Used by |
 |----------|---------|
-| `DATABASE_URL` | Supabase Postgres — pooled (port 6543, `sslmode=require`) in prod |
+| `DATABASE_URL` | Supabase Postgres — session pooler (supavisor, port 5432 on `aws-0-{region}.pooler.supabase.com`, `sslmode=require`) in prod. *Not* the transaction pooler on 6543 — that disables prepared statements and breaks SQLAlchemy. `database.py` sets `pool_pre_ping`, `pool_recycle=1800`. |
 | `SUPABASE_URL` | Supabase project URL — also resolves the JWKS endpoint for verifying user JWTs in `deps.py` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Uploading audio/image blobs to Supabase Storage |
 | `DEEPSEEK_API_KEY` | LLM word generation |
