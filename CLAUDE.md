@@ -70,13 +70,11 @@ bash deploy-frontend.sh  # just the frontend (auto-reads VITE_API_BASE from .env
 
 To enable new user signups during a deploy: `VITE_ALLOW_SIGNUP=true bash deploy.sh`.
 
-## Migrating from the old GCP stack
+## Comprehensible Input (/read)
 
-See `migration/README.md` for the one-shot scripts:
-1. `pg_dump` → Supabase Postgres
-2. Copy bytea blobs to Supabase Storage
-3. Pre-create Supabase auth users from Firebase export
-4. Trigger password-reset emails
+A second learning mode alongside flashcards. Users complete an onboarding placement test (`/onboarding`), then the `/read` page generates short Chinese texts calibrated to their level — targeting a configurable known-word ratio based on their flashcard deck, HSK level, and a static function-word allowlist. Texts are segmented by `ci_engine.py` (jieba) and each token is classified (mature/borderline/learning/unknown). Audio is synthesized lazily on demand and streamed with per-sentence timestamps for highlighting.
+
+Key backend files: `ci_engine.py`, `ci_baseline.py`, `routers/ci.py`, `routers/ci_audio.py`, `routers/onboarding.py`. Frontend: `src/stores/ci.ts`, `ReadView.vue`, `ReadDetailView.vue`, `ReadOnboardingView.vue`.
 
 ## Environment variables
 
