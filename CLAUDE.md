@@ -74,6 +74,8 @@ To enable new user signups during a deploy: `VITE_ALLOW_SIGNUP=true bash deploy.
 
 A second learning mode alongside flashcards. Users complete an onboarding placement test (`/onboarding`), then the `/read` page generates short Chinese texts calibrated to their level — targeting a configurable known-word ratio based on their flashcard deck, HSK level, and a static function-word allowlist. Texts are segmented by `ci_engine.py` (jieba) and each token is classified (mature/borderline/learning/unknown). Audio is synthesized lazily on demand and streamed with per-sentence timestamps for highlighting.
 
+Generation has a variety layer so consecutive texts don't repeat: word selections are sampled (new words split between reinforcing recently-seen-but-unacquired words and fresh picks; recycle candidates sorted by FSRS due-date urgency and rotated against recent texts), the prompt carries an avoid-list of the user's recent titles/topics/openings, and blank topic/genre fields are filled from sampled seed lists. The LLM echoes back the topic/genre it chose, which is persisted on the text and feeds the next generation's avoid-list.
+
 Key backend files: `ci_engine.py`, `ci_baseline.py`, `routers/ci.py`, `routers/ci_audio.py`, `routers/onboarding.py`. Frontend: `src/stores/ci.ts`, `ReadView.vue`, `ReadDetailView.vue`, `ReadOnboardingView.vue`.
 
 ## Environment variables
@@ -87,6 +89,7 @@ Backend (`flashcard-backend/.env` for local dev, `fly secrets` in prod):
 | `SUPABASE_SERVICE_ROLE_KEY` | Uploading audio/image blobs to Supabase Storage |
 | `DEEPSEEK_API_KEY` | LLM word generation |
 | `UNSPLASH_ACCESS_KEY` | Word image search |
+| `AZURE_SPEECH_KEY` | Azure Speech pronunciation assessment (optional — only needed if pronunciation endpoints are used) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service-account JSON (Google/Gemini TTS) |
 | `GCP_SERVICE_ACCOUNT_JSON` | Raw JSON contents; Fly entrypoint writes this to `/secrets/gcp.json` |
 
