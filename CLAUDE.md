@@ -78,6 +78,10 @@ Generation has a variety layer so consecutive texts don't repeat: word selection
 
 Key backend files: `ci_engine.py`, `ci_baseline.py`, `routers/ci.py`, `routers/ci_audio.py`, `routers/onboarding.py`. Frontend: `src/stores/ci.ts`, `ReadView.vue`, `ReadDetailView.vue`, `ReadOnboardingView.vue`.
 
+## AI card images
+
+Cards without an image can have one AI-generated on demand (`POST /words/{id}/image/generate`), supporting the dual-coding / picture-superiority effect — especially for abstract words where a fitting stock photo is hard to find. An LLM authors a text-free, single-subject prompt (a literal scene for concrete words, a creative/mnemonic hook for abstract ones), fed to a Google Gemini image model (`gemini-3.1-flash-image` on Vertex AI, reusing the GCP TTS service account). Generation is strictly on-demand — the button *is* the spend confirmation — and reachable per-card from the Detail view and inline (post-reveal) during a review. Key files: `flashcard-backend/image_gen.py`, `routers/images.py`; frontend `DetailView.vue`, `SessionView.vue`.
+
 ## Environment variables
 
 Backend (`flashcard-backend/.env` for local dev, `fly secrets` in prod):
