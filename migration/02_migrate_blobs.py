@@ -45,19 +45,28 @@ def _ext(mimetype: str) -> str:
     }.get(mimetype, "")
 
 
-def _ensure_bucket(sb, name: str) -> None:
-    existing = {b.name for b in sb.storage.list_buckets()}
+def _ensure_bucket(sb, name: str, *, public: bool = False) -> None:
+    """Create the bucket if missing, and reconcile its public flag if it exists.
+
+    Word audio/images are served as stable public CDN URLs (see
+    `supabase_storage.public_url`), so those buckets must be public. User voice
+    recordings (pronunciation/hskk) stay private and keep using signed URLs.
+    """
+    existing = {b.name: b for b in sb.storage.list_buckets()}
     if name not in existing:
-        log.info("Creating bucket %s", name)
-        sb.storage.create_bucket(name, options={"public": False})
+        log.info("Creating %s bucket %s", "public" if public else "private", name)
+        sb.storage.create_bucket(name, options={"public": public})
+    elif public and not getattr(existing[name], "public", False):
+        log.info("Flipping bucket %s to public", name)
+        sb.storage.update_bucket(name, options={"public": True})
 
 
 def main() -> int:
     db_url = os.environ["DATABASE_URL"]
     sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"])
 
-    _ensure_bucket(sb, AUDIO_BUCKET)
-    _ensure_bucket(sb, IMAGE_BUCKET)
+    _ensure_bucket(sb, AUDIO_BUCKET, public=True)
+    _ensure_bucket(sb, IMAGE_BUCKET, public=True)
 
     # Run idempotent schema migrations so newly-added columns (e.g.
     # word_audio.storage_path) exist before we query the ORM.
