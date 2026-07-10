@@ -82,6 +82,15 @@ Key backend files: `ci_engine.py`, `ci_baseline.py`, `routers/ci.py`, `routers/c
 
 Cards without an image can have one AI-generated on demand (`POST /words/{id}/image/generate`), supporting the dual-coding / picture-superiority effect — especially for abstract words where a fitting stock photo is hard to find. An LLM authors a text-free, single-subject prompt (a literal scene for concrete words, a creative/mnemonic hook for abstract ones), fed to a Google Gemini image model (`gemini-3.1-flash-image` on Vertex AI, reusing the GCP TTS service account). Generation is strictly on-demand — the button *is* the spend confirmation — and reachable per-card from the Detail view and inline (post-reveal) during a review. Key files: `flashcard-backend/image_gen.py`, `routers/images.py`; frontend `DetailView.vue`, `SessionView.vue`.
 
+## Offline study (plane mode)
+
+Flashcard drilling works without connectivity. Two layers:
+
+- **Write path** (pre-existing): review/typing submissions that fail on connectivity are queued in localStorage (`offlineQueue.ts`) and replayed FIFO on reconnect; the backend dedupes on `client_key` and anchors FSRS timing to `reviewed_at`.
+- **Read path**: an explicit "Download for offline" pack on the session picker (`GET /session?size=N`, N up to 500, stored in IndexedDB with all audio/images warmed into the service-worker caches) plus an automatic snapshot of every online session load as fallback. Offline, `session.start()` drills the pack; Again-rated cards re-queue a few positions later until passed (client-side learning-step emulation — each showing is its own queued review). FSRS stays server-authoritative: the client never reschedules, it just replays.
+
+Constraints: session composition is frozen at download time; stats/streak stay stale until sync; study-session analytics don't cover offline sessions; AI image generation is never triggered by pack downloads. Debugging: Settings → Diagnostics shows a persistent client-side log (IndexedDB ring buffer) with export.
+
 ## Environment variables
 
 Backend (`flashcard-backend/.env` for local dev, `fly secrets` in prod):
