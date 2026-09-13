@@ -121,7 +121,9 @@ Frontend (`flashcard-frontend/.env.local`, not committed):
 The app serves several accounts off one deployment, all spending the owner's API keys. Three rules hold the tenancy together:
 
 - **Accounts** are resolved only by the verified JWT's `sub` → `User.supabase_uid`, and created on first sign-in. `ALLOWED_SIGNUP_EMAILS` gates creation, but the real switch is *Disable signups* in the Supabase dashboard: the anon key is in the frontend bundle, so `VITE_ALLOW_SIGNUP=false` only hides the tab.
-- **Vocabulary** is a shared `words` table (unique on hanzi) with per-user decks on top. Browsing and every mutation are scoped through `flashcard-backend/deck.py`; adding a word someone else already added gives you cards for it rather than a duplicate error. Word *content* is still shared — the catalog/override split is the next step.
+- **Vocabulary** is split in two by `Word.owner_user_id`: a curated **catalog** (NULL owner — HSK 1–3, imported from vendored lists) that everyone sees, plus words **owned** by the user who created them. `hanzi` is unique per scope, not globally, so your own 苹果 and the catalog's coexist and `deck.resolve_word` hands each user theirs. Everything goes through `flashcard-backend/deck.py`: `visible_words` for anything offering words to a user, `resolve_word` for hanzi lookups, `require_in_deck` for mutations, `add_to_deck` so an existing word gives you cards rather than a duplicate error.
+
+  Import or re-import the catalog with `cd flashcard-backend && python import_catalog.py --dry-run` (then without the flag, and restart the backend so the segmenter reloads). It is insert-only: it never modifies an existing row, so user-written definitions, examples, notes and images can't be overwritten. Regenerate the data file from the vendored sources with `python catalog/build_hsk_catalog.py`.
 - **Spend** is metered per user per rolling 24 h by `flashcard-backend/quota.py` (`enforce_quota("<action>")` on each expensive route; caps in `config.quota_*`). `GET /users/me/usage` reports what's left; over the cap the API returns 429 with a human-readable message, which the frontend shows verbatim.
 
 ## Architecture overview
