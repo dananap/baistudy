@@ -103,6 +103,7 @@ Backend (`flashcard-backend/.env` for local dev, `fly secrets` in prod):
 | `DEEPSEEK_API_KEY` | LLM word generation |
 | `UNSPLASH_ACCESS_KEY` | Word image search |
 | `AZURE_SPEECH_KEY` | Azure Speech pronunciation assessment (optional — only needed if pronunciation endpoints are used) |
+| `ALLOWED_SIGNUP_EMAILS` | Comma-separated invite list for *new* accounts (optional; unset ⇒ open registration) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service-account JSON (Google/Gemini TTS) |
 | `GCP_SERVICE_ACCOUNT_JSON` | Raw JSON contents; Fly entrypoint writes this to `/secrets/gcp.json` |
 
@@ -114,6 +115,14 @@ Frontend (`flashcard-frontend/.env.local`, not committed):
 | `VITE_SUPABASE_ANON_KEY` | Supabase auth (public anon key) |
 | `VITE_API_BASE` | Full backend URL in prod (Fly app URL); omit in dev (Vite proxy handles it) |
 | `VITE_ALLOW_SIGNUP` | Set `true` to show "Create account" tab; omit/`false` to hide it |
+
+## Multi-user access control
+
+The app serves several accounts off one deployment, all spending the owner's API keys. Three rules hold the tenancy together:
+
+- **Accounts** are resolved only by the verified JWT's `sub` → `User.supabase_uid`, and created on first sign-in. `ALLOWED_SIGNUP_EMAILS` gates creation, but the real switch is *Disable signups* in the Supabase dashboard: the anon key is in the frontend bundle, so `VITE_ALLOW_SIGNUP=false` only hides the tab.
+- **Vocabulary** is a shared `words` table (unique on hanzi) with per-user decks on top. Browsing and every mutation are scoped through `flashcard-backend/deck.py`; adding a word someone else already added gives you cards for it rather than a duplicate error. Word *content* is still shared — the catalog/override split is the next step.
+- **Spend** is metered per user per rolling 24 h by `flashcard-backend/quota.py` (`enforce_quota("<action>")` on each expensive route; caps in `config.quota_*`). `GET /users/me/usage` reports what's left; over the cap the API returns 429 with a human-readable message, which the frontend shows verbatim.
 
 ## Architecture overview
 
