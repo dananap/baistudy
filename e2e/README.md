@@ -89,6 +89,33 @@ survive the redesign's markup changes and double as an accessibility check.
 Arrange state through `backend` rather than clicking through setup screens,
 except in the test that is about those screens.
 
+## Design standards
+
+`tests/design-standards.spec.ts` checks the frontend against
+`flashcard-frontend/design-standards.md` (test names cite its sections) on
+every route, on both projects. It covers:
+
+- **§3 accessibility:** axe-core WCAG 2.2 A/AA, where serious or critical
+  violations fail. It also checks one `<h1>` per view, 44px touch targets on
+  touch and 36px with a fine pointer, a visible focus indicator that isn't
+  obscured by sticky bars, and `lang="zh-CN"` on all Chinese text.
+- **§2 shell:** no horizontal scroll at the project width and at 320px,
+  inputs of at least 16px, keyboard hints hidden on touch, and tab
+  bar/rail/sidebar placement plus focus mode.
+- **§5 typography:** a 12px floor, Plex for UI text, Kai for study hanzi,
+  and no line starting with closing punctuation.
+- **§4/§13 theme:** follows the system, the Settings override persists, and
+  axe passes in dark too.
+- **§9 states:** error with retry, loading, empty and offline states, and
+  form validation.
+- **§10 motion:** the celebration on session complete, and reduced motion.
+- **§11 copy:** no `!` and no emoji in UI copy.
+- **§12 performance:** CLS on load, and reveal/rate latency.
+
+The checks live in `support/audit.ts`, and each one returns the offending
+elements, so a failure names what broke. A new view needs an entry in the
+spec's `routes` list. A new multi-step screen needs an audit call per step.
+
 This suite complements `flashcard-frontend/e2e/visual`, which renders every
 screen against mocked APIs for visual review; this one checks that flows work
 end to end.
