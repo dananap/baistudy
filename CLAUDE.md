@@ -38,6 +38,17 @@ cd flashcard-frontend
 pnpm dev   # http://localhost:5173, proxies /api/* → localhost:8000
 ```
 
+## End-to-end tests
+
+`e2e/` (root-level, since it spans both submodules) runs Playwright against the real frontend, backend and a private Postgres cluster, with Supabase Auth/Storage and DeepSeek replaced by a local stub and Google TTS/images by the backend's `FAKE_PROVIDERS` mode. No network, no spend.
+
+```bash
+cd e2e && pnpm install && pnpm test   # boots and tears down the whole stack
+pnpm stack                            # keep the backend half up between runs
+```
+
+Every test gets a fresh account; the DB is cloned from a cached template holding the HSK catalog. See `e2e/README.md` for fixtures and conventions.
+
 ## Submodule workflow
 
 ```bash
