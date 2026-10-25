@@ -34,6 +34,12 @@ VITE_ALLOW_SIGNUP="${VITE_ALLOW_SIGNUP:-false}" pnpm build
 
 # Push reminders depend on the service worker pulling in sw-push.js.
 grep -q 'sw-push.js' dist/sw.js || { echo "dist/sw.js does not import sw-push.js" >&2; exit 1; }
+# The raw Fly origin 403s without the Cloudflare-added X-Origin-Auth header,
+# so a bundle pointing at *.fly.dev is broken in prod.
+if grep -rqE 'https://[a-z0-9-]+\.fly\.dev' dist/assets/; then
+  echo "bundle calls a fly.dev URL; VITE_API_BASE should be https://api.baistudy.online" >&2
+  exit 1
+fi
 
 echo "==> Deploying to the baistudy Worker..."
 ./node_modules/.bin/wrangler deploy
