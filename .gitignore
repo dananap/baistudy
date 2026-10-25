@@ -2,3 +2,4 @@ venv/
 venv
 .firebase/
 baistudy.dump
+.temp/
