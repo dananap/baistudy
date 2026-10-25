@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy both backend (Fly.io) and frontend (Cloudflare Pages).
+# Deploy both backend (Fly.io) and frontend (Cloudflare Worker).
 # See deploy-backend.sh and deploy-frontend.sh for prerequisites.
 
 set -euo pipefail

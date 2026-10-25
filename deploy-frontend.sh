@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# Build the frontend and deploy to Cloudflare Pages.
+# Build the frontend and deploy it to the `baistudy` Cloudflare Worker
+# (static assets, configured in flashcard-frontend/wrangler.jsonc), which
+# serves baistudy.online.
 #
 # Prerequisites:
-#   - wrangler installed (`npm i -g wrangler`) and authenticated (`wrangler login`)
-#   - First time only: `wrangler pages project create baistudy` (or via dashboard)
+#   - Authenticated with the project's own wrangler:
+#       cd flashcard-frontend && ./node_modules/.bin/wrangler login
+#     (a global wrangler may run on an older Node that wrangler 4 rejects)
 #   - flashcard-frontend/.env.local with VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY,
-#     VITE_API_BASE (the Fly URL), and VITE_ALLOW_SIGNUP.
+#     VITE_API_BASE (https://api.baistudy.online), and optionally VITE_ALLOW_SIGNUP.
+#   - A CLOUDFLARE_API_TOKEN in the environment takes precedence over the OAuth
+#     login; unset it if it is stale.
 #
 # Usage: bash deploy-frontend.sh [<VITE_API_BASE>]
 #   If VITE_API_BASE is not in .env.local, pass it as the first argument.
@@ -27,7 +32,10 @@ fi
 echo "==> Building frontend..."
 VITE_ALLOW_SIGNUP="${VITE_ALLOW_SIGNUP:-false}" pnpm build
 
-echo "==> Deploying to Cloudflare Pages..."
-wrangler pages deploy dist --project-name="${CF_PAGES_PROJECT:-baistudy}" --branch=main
+# Push reminders depend on the service worker pulling in sw-push.js.
+grep -q 'sw-push.js' dist/sw.js || { echo "dist/sw.js does not import sw-push.js" >&2; exit 1; }
+
+echo "==> Deploying to the baistudy Worker..."
+./node_modules/.bin/wrangler deploy
 
 echo "Frontend deployed."
