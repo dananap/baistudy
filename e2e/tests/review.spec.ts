@@ -1,7 +1,14 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../support/fixtures';
 
-type Stats = { total_reviews: number; streak_days: number; total_cards: number };
+type Stats = {
+  total_reviews: number;
+  streak_days: number;
+  total_cards: number;
+  reviews_today: number;
+  daily_review_goal: number;
+  recent_days: { date: string; count: number; goal_met: boolean }[];
+};
 
 async function startReview(page: Page) {
   await page.goto('/session/start');
@@ -37,10 +44,31 @@ test.describe('flashcard review', () => {
     await expect(page).toHaveURL(/\/complete$/);
     await expect(page.getByText(`${total} of ${total} recalled`)).toBeVisible();
 
-    // Ratings post in the background, so the summary can beat the last few
-    // writes; every one of them must still land.
     await expect.poll(async () => (await backend.get<Stats>('/stats')).total_reviews).toBe(total);
-    expect((await backend.get<Stats>('/stats')).streak_days).toBe(1);
+    expect((await backend.get<Stats>('/stats')).streak_days).toBe(0);
+  });
+
+  test('a bounded session completes the daily goal and updates the dashboard', async ({ authedPage: page, backend }) => {
+    await backend.send('PATCH', '/settings?session_size=5&daily_review_goal=5');
+    await startReview(page);
+    const [, total] = await progress(page);
+    expect(total).toBe(5);
+
+    for (let i = 1; i <= total; i++) {
+      await page.getByRole('button', { name: /Show answer/ }).click();
+      await page.getByRole('button', { name: 'Good: Recalled' }).click();
+    }
+
+    await expect(page).toHaveURL(/\/complete$/);
+    await expect(page.getByText('Daily goal reached · 5 reviews today')).toBeVisible();
+    await expect.poll(async () => (await backend.get<Stats>('/stats')).reviews_today).toBe(5);
+    const stats = await backend.get<Stats>('/stats');
+    expect(stats.streak_days).toBe(1);
+    expect(stats.recent_days.at(-1)).toMatchObject({ count: 5, goal_met: true });
+
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.getByText('5 / 5', { exact: true })).toBeVisible();
+    await expect(page.getByText('Daily goal reached. Show up again tomorrow.')).toBeVisible();
   });
 
   test('concurrent reviews by one user all count', async ({ backend }) => {
