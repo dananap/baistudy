@@ -1,0 +1,4 @@
+project_id = "baistudy"
+
+[functions.study-reminders]
+verify_jwt = false

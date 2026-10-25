@@ -2,3 +2,6 @@ venv/
 venv
 .firebase/
 baistudy.dump
+.tools/
+supabase/functions/.env
+supabase/.temp/
